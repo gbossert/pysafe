@@ -1,0 +1,425 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
+# +---------------------------------------------------------------------------+
+# | Copyright (C) 2016 Georges Bossert                                        |
+# | This program is free software: you can redistribute it and/or modify      |
+# | it under the terms of the GNU General Public License as published by      |
+# | the Free Software Foundation, either version 3 of the License, or         |
+# | (at your option) any later version.                                       |
+# |                                                                           |
+# | This program is distributed in the hope that it will be useful,           |
+# | but WITHOUT ANY WARRANTY; without even the implied warranty of            |
+# | MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the              |
+# | GNU General Public License for more details.                              |
+# |                                                                           |
+# | You should have received a copy of the GNU General Public License         |
+# | along with this program. If not, see <http://www.gnu.org/licenses/>.      |
+# +---------------------------------------------------------------------------+
+
+import sys
+import os
+import argparse
+import logging
+logging.basicConfig(level=logging.DEBUG)
+from getpass import getpass
+from datetime import datetime
+from StringIO import StringIO
+import re
+import json
+import pyperclip
+from simplecrypt import encrypt, decrypt
+
+def password_check(password):
+    """
+    Verify the strength of 'password'
+    Returns a dict indicating the wrong criteria
+    A password is considered strong if:
+        8 characters length or more
+        1 digit or more
+        1 symbol or more
+        1 uppercase letter or more
+        1 lowercase letter or more
+    """
+
+    # calculating the length
+    length_error = len(password) < 8
+
+    # searching for digits
+    digit_error = re.search(r"\d", password) is None
+
+    # searching for uppercase
+    uppercase_error = re.search(r"[A-Z]", password) is None
+
+    # searching for lowercase
+    lowercase_error = re.search(r"[a-z]", password) is None
+
+    # searching for symbols
+    symbol_error = re.search(r"\W", password) is None    
+
+    # overall result
+    password_ok = not ( length_error or digit_error or uppercase_error or lowercase_error or symbol_error )
+
+    return {
+        'password_ok' : password_ok,
+        'length_error' : length_error,
+        'digit_error' : digit_error,
+        'uppercase_error' : uppercase_error,
+        'lowercase_error' : lowercase_error,
+        'symbol_error' : symbol_error,
+    }
+
+def _request_password(message, check_complexity = True):
+    """This function requests the user to provide a password and checks a minimum complexity"""
+
+    password_ok = False
+    while not password_ok:
+        password = getpass(message)
+
+        if not check_complexity:
+            break        
+        
+        complexity_check = password_check(password)
+
+        if complexity_check['password_ok']:
+            password_ok = True
+        else:
+            logging.error("The password you've provided is not complex enough : {}".format(complexity_check))
+
+    return password
+        
+
+def _write_keypass(keypass, keypass_path, password = None):
+    """This function encrypts on disk the specified keypass structure.
+    If not password is specified, it requests the user a password for it"""
+
+    if password is None:
+        password1 = "1"
+        password2 = "2"
+        while password1 != password2:
+            password1 = _request_password("Specify a strong password of your new keypass: ")
+            password2 = _request_password("Re-type your password: ")
+
+            if password1 != password2:
+                logging.error("Provided passwords do not match, try again !")
+
+        password = password1
+
+    enc_keypass = _encrypt_keypass(keypass, password)
+
+    with open(keypass_path, 'wb') as fd:
+        fd.write(enc_keypass)
+
+    logging.info("Keypass encrypted on disk ({})".format(keypass_path))
+    
+
+def _encrypt_keypass(keypass, password):
+    """This method encrypts the specified keypass with the specified password"""
+    
+    if keypass is None:
+        raise Exception("Keypass cannot be None")
+    if password is None or len(password.strip()) == 0:
+        raise Exception("Password cannot be None")
+
+    io = StringIO()
+    json.dump(keypass, io)
+
+    enc_keypass = encrypt(password, io.getvalue())
+    if enc_keypass is None or len(enc_keypass) == 0:
+        raise Exception("Encrypted keypass is empty.")
+
+    return enc_keypass
+
+def _decrypt_keypass(encrypted_keypass, password):
+    
+    if encrypted_keypass is None:
+        raise Exception("Encrypted keypass cannot be None")
+
+    if password is None or len(password.strip()) == 0:
+        raise Exception("Password cannot be None")
+
+    clear_keypass_str = decrypt(password, encrypted_keypass)
+    
+    keypass =  json.loads(clear_keypass_str)
+
+    # fetchs the keypass name (and check the format)
+    if 'name' not in keypass.keys():
+        raise Exception("Cannot retrieve the keypass name")
+    
+    logging.debug("Keypass '{}' decrypted".format(keypass['name']))
+    return keypass
+
+    
+def _create(args):
+    """This function is triggered when the user has requested to create a new keypass file"""
+    logging.debug("Creates a new keypass")
+
+    keypass_path = args.keypass
+    if keypass_path is None or len(keypass_path.strip()) == 0:
+        raise Exception("Keypass path must be specified")
+    
+    if os.path.exists(keypass_path):
+        raise Exception("Cannot overwrite file '{}'".format(keypass_path))
+
+    keypass_name = args.name
+    if keypass_name is None or len(keypass_name.strip()) == 0:
+        raise Exception("Keypass name must be specified")
+    
+    #
+    # A key pass is an encrypted json file 
+    #
+    keypass = {
+        "name": keypass_name,
+        "creation_date": str(datetime.now()),
+        "passwords": { }    
+    }
+
+    _write_keypass(keypass, keypass_path)
+
+
+def write_password(keypass, password_name, username = None, comment = None):
+    """This method inserts a new password in the keypass"""
+
+    if keypass is None:
+        raise Exception("keypass cannot be None")
+    
+    if password_name is None:
+        raise Exception("Password name cannot be None")
+
+    if 'passwords' not in keypass.keys():
+        raise Exception("Cannot find passwords in the keypass")
+    
+    password = _request_password("Enter the password you want to store", check_complexity=False)
+    
+    keypass['passwords'][password_name] = { "username": username, "password": password, "comment": comment }
+    
+        
+def password_exists(keypass, password_name):
+    """This method returns True if a password exists with the specified name"""
+    
+    if keypass is None:
+        raise Exception("keypass cannot be None")
+    
+    if password_name is None:
+        raise Exception("Password name cannot be None")
+
+    if 'passwords' not in keypass.keys():
+        raise Exception("Cannot find passwords in the keypass")
+    
+    passwords = keypass['passwords']
+
+    return password_name in passwords.keys()
+
+    
+def _open_keypass(keypass_path):
+    """This function opens the specified keypass, decrypts it and returns it content"""
+    logging.debug("Open keypass '{}'".format(keypass_path))
+
+    encrypted_keypass = None
+    with open(keypass_path, 'rb') as fd:
+        encrypted_keypass = fd.read()
+
+    if encrypted_keypass is None or len(encrypted_keypass) == 0:
+        raise Exception("Specified keypass is empty")
+
+
+    # request the password
+    password = _request_password("Enter the password of your keepass: ", check_complexity = False)
+    
+    keypass = _decrypt_keypass(encrypted_keypass, password)
+
+    logging.debug("Keypass succesffuly opened")
+    return (keypass, password)
+    
+
+def _store(args):
+    """This function is triggered when the user has requested to store a new password in keypass"""
+    logging.debug("Stores a new password in your keypass")
+
+    keypass_path = args.keypass
+    if keypass_path is None or len(keypass_path.strip()) == 0:
+        keypass_path = "keypass.enc"
+
+    if not os.path.exists(keypass_path):
+        raise Exception("Cannot fint the keypass")
+
+    if args.password_name is None or len(args.password_name.strip()) == 0:
+        raise Exception("Password name cannot be None or empty")
+
+    password_name = args.password_name
+    username = args.username
+    comment = args.comment
+    
+    (keypass, keypass_password) = _open_keypass(keypass_path)
+
+    if password_exists(keypass, password_name):
+        raise Exception("Cannot overwrite password stored with name '{}'".format(password_name))
+    else:
+        logging.debug("Storing...")
+        write_password(keypass, password_name, username, comment)
+
+    _write_keypass(keypass, keypass_path, password = keypass_password)
+        
+    logging.info("New password registered in keypass")
+
+def _list(args):
+    """This function is triggered when the user has requested to list all the passwords in keypass"""
+    logging.debug("Stores a new password in your keypass")
+
+    keypass_path = args.keypass
+    if keypass_path is None or len(keypass_path.strip()) == 0:
+        keypass_path = "keypass.enc"
+
+    if not os.path.exists(keypass_path):
+        raise Exception("Cannot fint the keypass")
+    
+    (keypass, _) = _open_keypass(keypass_path)
+
+    output = ["Keypass contains the following passwords:"]
+    for password_name, password_details in keypass['passwords'].items():
+        data = """[{}]
+Username: {}
+Password: {}
+Comment : {}
+
+""".format(password_name, password_details['username'], password_details['password'], password_details['comment'])
+        
+        output.append(data)
+
+    logging.info("\n".join(output))
+
+    logging.info("Keystore contains {} passwords".format(len(keypass['passwords'])))
+
+def _delete(args):
+    """This function is triggered when the user has requested to delete the specified password in keypass"""
+    logging.debug("Delete password in your keypass")
+
+    keypass_path = args.keypass
+    if keypass_path is None or len(keypass_path.strip()) == 0:
+        keypass_path = "keypass.enc"
+
+    if not os.path.exists(keypass_path):
+        raise Exception("Cannot fint the keypass")
+
+    if args.password_name is None or len(args.password_name.strip()) == 0:
+        raise Exception("Password name cannot be None or empty")
+
+    password_name = args.password_name
+    
+    (keypass, keypass_password) = _open_keypass(keypass_path)
+
+    if not password_exists(keypass, password_name):
+        raise Exception("Requested password doesn't exists in keystore")
+
+    confirm = raw_input("Are you sure to delete password '{}' [No,yes] :".format(password_name))
+    if confirm.lower() == "yes":
+        del keypass["passwords"][password_name]
+
+        _write_keypass(keypass, keypass_path, password = keypass_password)        
+        logging.info("Password succesffuly deleted")
+    else:
+        logging.info("Operation canceled")
+
+def _get(args):
+    """This function is triggered when the user has requested a specific password stored in keypass"""
+    logging.debug("Delete password in your keypass")
+
+    keypass_path = args.keypass
+    if keypass_path is None or len(keypass_path.strip()) == 0:
+        keypass_path = "keypass.enc"
+
+    if not os.path.exists(keypass_path):
+        raise Exception("Cannot fint the keypass")
+
+    if args.password_name is None or len(args.password_name.strip()) == 0:
+        raise Exception("Password name cannot be None or empty")
+
+    password_name = args.password_name
+    
+    (keypass, keypass_password) = _open_keypass(keypass_path)
+
+    if not password_exists(keypass, password_name):
+        raise Exception("Requested password doesn't exists in keystore")
+
+
+    password_details = keypass['passwords'][password_name]
+
+    password_to_show = "HIDDEN"
+    if args.show_password:
+        password_to_show = password_details['password']
+    
+    data = """
+[{}]
+Username: {}
+Password: {}
+Comment : {}
+
+""".format(password_name, password_details['username'], password_to_show, password_details['comment'])
+    
+    logging.info(data)
+
+    pyperclip.copy(password_details['password'])
+    
+    logging.info("!!! Password is stored in your clipboard !!!")
+    
+def main():
+    parser = argparse.ArgumentParser(prog='pysafe.py')    
+    subparsers = parser.add_subparsers(help='Commands exposed by the tool')
+
+    #
+    # create
+    #
+    parser_create = subparsers.add_parser('create', help='Create a new keypass')
+    parser_create.add_argument('keypass', help="Path of the Keypass to create")
+    parser_create.add_argument('name', help="Name of the Keypass")    
+    parser_create.set_defaults(func = _create)
+    
+    #
+    # store
+    #
+    parser_store = subparsers.add_parser('store', help='Store a password in keypass')
+    parser_store.add_argument('password_name', help="Name of the password")
+    parser_store.add_argument('--keypass', dest="keypass", help="Path to the keypass file (default is keypass.enc")
+    parser_store.add_argument('--username', dest="username", help="Optional username attached to the provided password")
+    parser_store.add_argument('--comment', dest="comment", help="Optional comments")            
+    parser_store.set_defaults(func = _store)
+
+    #
+    # delete
+    #
+    parser_delete = subparsers.add_parser('delete', help='Delete a password in keypass')
+    parser_delete.add_argument('password_name', help="Name of the password")
+    parser_delete.add_argument('--keypass', dest="keypass", help="Path to the keypass file (default is keypass.enc")    
+    parser_delete.set_defaults(func = _delete)
+    
+    
+    #
+    # get
+    #
+    parser_get = subparsers.add_parser('get', help='Get a password in keypass')
+    parser_get.add_argument('password_name', help="Name of the password")
+    parser_get.add_argument('--keypass', dest="keypass", help="Path to the keypass file (default is keypass.enc")
+    parser_get.add_argument("--show-password", dest="show_password", action='store_true')
+    parser_get.set_defaults(func = _get)
+    
+    #
+    # list
+    #
+    parser_list = subparsers.add_parser('list', help='List password in keypass')
+    parser_list.add_argument('--keypass', dest="keypass", help="Path to the keypass file (default is keypass.enc")    
+    parser_list.set_defaults(func = _list)
+    
+
+    # handles the user arguments according to the CLI schema
+    args = parser.parse_args()
+    # triggers the execution of the sub-command parsing function
+    try:
+        # lets execute the requested sub command
+        args.func(args)
+    except Exception as e:
+        logging.error(e)
+        sys.exit(-1)
+    
+    
+if __name__ == "__main__":
+    main()
