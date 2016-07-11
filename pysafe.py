@@ -264,7 +264,7 @@ def _store(args):
 
 def _list(args):
     """This function is triggered when the user has requested to list all the passwords in keypass"""
-    logging.debug("Stores a new password in your keypass")
+    logging.debug("List all passwords stored in your keypass")
 
     keypass_path = args.keypass
     if keypass_path is None or len(keypass_path.strip()) == 0:
@@ -277,12 +277,10 @@ def _list(args):
 
     output = ["Keypass contains the following passwords:"]
     for password_name, password_details in keypass['passwords'].items():
-        data = """[{}]
-Username: {}
-Password: {}
-Comment : {}
-
-""".format(password_name, password_details['username'], password_details['password'], password_details['comment'])
+        comment = ""
+        if password_details['comment'] is not None:
+            comment = password_details['comment']
+        data = """[{}] {}""".format(password_name, comment)
         
         output.append(data)
 
