@@ -49,7 +49,7 @@ $ ./pysafe.py get my_cred_name --keypass safe.enc
 
 Retrieves credentials attached to "my_cred_name" stored in safe.enc and displays it
 ```bash
-$ ./pysafe.py get my_cred_name --keypass safe.enc
+$ ./pysafe.py get my_cred_name --keypass safe.enc --show-password
 
 ```
 
