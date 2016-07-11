@@ -22,7 +22,7 @@ As detailed in their documentation, the following cryptographic rules are follow
 ## Dependencies
 
 - pyperclip
-- simplecrypt
+- simple-crypt
 
 ## Usages
 
