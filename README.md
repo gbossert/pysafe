@@ -28,32 +28,32 @@ As detailed in their documentation, the following cryptographic rules are follow
 
 Initiates a new safe (in safe.enc) with the following command:
 ```bash
-$ ./pysafe.py create safe.enc "My Safe"
+$ ./pysafe create safe.enc "My Safe"
 ```
 
 Stores a new password in safe.enc
 ```bash
-$ ./pysafe.py store my_cred_name --keypass safe.enc 
+$ ./pysafe store my_cred_name --keypass safe.enc 
 ```
 
 List all creadentials stored in safe.enc
 ```bash
-$ ./pysafe.py list --keypass safe.enc
+$ ./pysafe list --keypass safe.enc
 ```
 
 Retrieves credentials attached to "my_cred_name"  stored in safe.enc and stores it in your clipboard
 ```bash
-$ ./pysafe.py get my_cred_name --keypass safe.enc
+$ ./pysafe get my_cred_name --keypass safe.enc
 
 ```
 
 Retrieves credentials attached to "my_cred_name" stored in safe.enc and displays it
 ```bash
-$ ./pysafe.py get my_cred_name --keypass safe.enc --show-password
+$ ./pysafe get my_cred_name --keypass safe.enc --show-password
 
 ```
 
 Deletes one credential info from safe.enc
 ```bash
-$ ./pysafe.py delete my_cred_name --keypass safe.enc
+$ ./pysafe delete my_cred_name --keypass safe.enc
 ```
