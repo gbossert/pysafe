@@ -21,7 +21,14 @@ import sys
 import os
 import argparse
 import logging
-logging.basicConfig(level=logging.DEBUG)
+
+logger = logging.getLogger()
+logger.setLevel(logging.DEBUG)
+formater = logging.Formatter('%(message)s')
+handler = logging.StreamHandler()
+handler.setFormatter(formater)
+logger.addHandler(handler)
+
 from getpass import getpass
 from datetime import datetime
 from StringIO import StringIO
@@ -84,7 +91,7 @@ def _request_password(message, check_complexity = True):
         if complexity_check['password_ok']:
             password_ok = True
         else:
-            logging.error("The password you've provided is not complex enough : {}".format(complexity_check))
+            logger.error("The password you've provided is not complex enough : {}".format(complexity_check))
 
     return password
         
@@ -101,7 +108,7 @@ def _write_keypass(keypass, keypass_path, password = None):
             password2 = _request_password("Re-type your password: ")
 
             if password1 != password2:
-                logging.error("Provided passwords do not match, try again !")
+                logger.error("Provided passwords do not match, try again !")
 
         password = password1
 
@@ -110,7 +117,7 @@ def _write_keypass(keypass, keypass_path, password = None):
     with open(keypass_path, 'wb') as fd:
         fd.write(enc_keypass)
 
-    logging.info("Keypass encrypted on disk ({})".format(keypass_path))
+    logger.info("Keypass encrypted on disk ({})".format(keypass_path))
     
 
 def _encrypt_keypass(keypass, password):
@@ -146,13 +153,13 @@ def _decrypt_keypass(encrypted_keypass, password):
     if 'name' not in keypass.keys():
         raise Exception("Cannot retrieve the keypass name")
     
-    logging.debug("Keypass '{}' decrypted".format(keypass['name']))
+    logger.debug("Keypass '{}' decrypted".format(keypass['name']))
     return keypass
 
     
 def _create(args):
     """This function is triggered when the user has requested to create a new keypass file"""
-    logging.debug("Creates a new keypass")
+    logger.debug("Creates a new keypass")
 
     keypass_path = args.keypass
     if keypass_path is None or len(keypass_path.strip()) == 0:
@@ -213,7 +220,7 @@ def password_exists(keypass, password_name):
     
 def _open_keypass(keypass_path):
     """This function opens the specified keypass, decrypts it and returns it content"""
-    logging.debug("Open keypass '{}'".format(keypass_path))
+    logger.debug("Open keypass '{}'".format(keypass_path))
 
     encrypted_keypass = None
     with open(keypass_path, 'rb') as fd:
@@ -228,13 +235,13 @@ def _open_keypass(keypass_path):
     
     keypass = _decrypt_keypass(encrypted_keypass, password)
 
-    logging.debug("Keypass succesffuly opened")
+    logger.debug("Keypass succesffuly opened")
     return (keypass, password)
     
 
 def _store(args):
     """This function is triggered when the user has requested to store a new password in keypass"""
-    logging.debug("Stores a new password in your keypass")
+    logger.debug("Stores a new password in your keypass")
 
     keypass_path = args.keypass
     if keypass_path is None or len(keypass_path.strip()) == 0:
@@ -255,16 +262,16 @@ def _store(args):
     if password_exists(keypass, password_name):
         raise Exception("Cannot overwrite password stored with name '{}'".format(password_name))
     else:
-        logging.debug("Storing...")
+        logger.debug("Storing...")
         write_password(keypass, password_name, username, comment)
 
     _write_keypass(keypass, keypass_path, password = keypass_password)
         
-    logging.info("New password registered in keypass")
+    logger.info("New password registered in keypass")
 
 def _list(args):
     """This function is triggered when the user has requested to list all the passwords in keypass"""
-    logging.debug("List all passwords stored in your keypass")
+    logger.debug("List all passwords stored in your keypass")
 
     keypass_path = args.keypass
     if keypass_path is None or len(keypass_path.strip()) == 0:
@@ -354,11 +361,11 @@ Comment : {}
 
 """.format(password_name, password_details['username'], password_to_show, password_details['comment'])
     
-    logging.info(data)
+    logger.info(data)
 
     pyperclip.copy(password_details['password'])
     
-    logging.info("!!! Password is stored in your clipboard !!!")
+    logger.info("!!! Password is stored in your clipboard !!!")
     
 def main():
     parser = argparse.ArgumentParser(prog='pysafe.py')    
@@ -415,7 +422,7 @@ def main():
         # lets execute the requested sub command
         args.func(args)
     except Exception as e:
-        logging.error(e)
+        logger.error(e)
         sys.exit(-1)
     
     
