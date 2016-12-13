@@ -325,13 +325,36 @@ def _delete(args):
         del keypass["passwords"][password_name]
 
         _write_keypass(keypass, keypass_path, password = keypass_password)        
-        logging.info("Password succesffuly deleted")
+        logger.info("Password succesffuly deleted")
     else:
-        logging.info("Operation canceled")
+        logger.info("Operation canceled")
 
+def _export(args):
+    """This functionn is triggered when the user has requested to export the keypass"""
+
+    logger.debug("Exporting keypass")
+    
+    current_keypass_path = args.current_keypass
+
+    if not os.path.exists(current_keypass_path):
+        raise Exception("Cannot fint the keypass")
+
+    export_keypass_path = args.export_keypass
+
+    if os.path.exists(export_keypass_path):
+        raise Exception("Export keypass already exists, cannot overwrite it")
+    
+    (keypass, _) = _open_keypass(current_keypass_path)
+
+    # request the export password
+    new_keypass_password = _request_password("Enter the password of the export keepass: ", check_complexity = False)
+    
+    _write_keypass(keypass, export_keypass_path, password = new_keypass_password)        
+    logger.info("Keypass succesffuly exported")
+    
 def _get(args):
     """This function is triggered when the user has requested a specific password stored in keypass"""
-    logging.debug("Delete password in your keypass")
+    logger.debug("Delete password in your keypass")
 
     keypass_path = args.keypass
     if keypass_path is None or len(keypass_path.strip()) == 0:
@@ -415,8 +438,16 @@ def main():
     # list
     #
     parser_list = subparsers.add_parser('list', help='List password in keypass')
-    parser_list.add_argument('--keypass', dest="keypass", help="Path to the keypass file (default is keypass.enc")    
+    parser_list.add_argument('keypass', help="Path to the keypass file (default is keypass.enc")    
     parser_list.set_defaults(func = _list)
+
+    #
+    # export
+    #
+    export_list = subparsers.add_parser('export', help='Export keypass with a new password')
+    export_list.add_argument('current_keypass', help="Path to the keypass file")
+    export_list.add_argument('export_keypass', help="Path to the new keypass file")    
+    export_list.set_defaults(func = _export)
     
 
     # handles the user arguments according to the CLI schema
