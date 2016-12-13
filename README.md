@@ -33,27 +33,32 @@ $ ./pysafe create safe.enc "My Safe"
 
 Stores a new password in safe.enc
 ```bash
-$ ./pysafe store my_cred_name --keypass safe.enc 
+$ ./pysafe store my_cred_name safe.enc 
 ```
 
 List all creadentials stored in safe.enc
 ```bash
-$ ./pysafe list --keypass safe.enc
+$ ./pysafe list safe.enc
 ```
 
 Retrieves credentials attached to "my_cred_name"  stored in safe.enc and stores it in your clipboard
 ```bash
-$ ./pysafe get my_cred_name --keypass safe.enc
+$ ./pysafe get my_cred_name safe.enc
 
 ```
 
 Retrieves credentials attached to "my_cred_name" stored in safe.enc and displays it
 ```bash
-$ ./pysafe get my_cred_name --keypass safe.enc --show-password
+$ ./pysafe get my_cred_name --show-password
 
 ```
 
 Deletes one credential info from safe.enc
 ```bash
-$ ./pysafe delete my_cred_name --keypass safe.enc
+$ ./pysafe delete my_cred_name safe.enc
+```
+
+Exports all the credentials in a new safe
+```bash
+$ ./pysafe export safe.enc new_safe.enc
 ```
