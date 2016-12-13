@@ -281,23 +281,27 @@ def _list(args):
         raise Exception("Cannot fint the keypass")
     
     (keypass, _) = _open_keypass(keypass_path)
-
+    
     output = ["Keypass contains the following passwords:"]
-    for password_name, password_details in keypass['passwords'].items():
+    output.append("-"*100)
+
+
+    for password_name in sorted(keypass['passwords'].keys()):
+        password_details = keypass['passwords'][password_name]
         comment = ""
         if password_details['comment'] is not None:
             comment = password_details['comment']
-        data = """[{}] {}""".format(password_name, comment)
+        data = """{:<50} | {}""".format(password_name, comment)
         
         output.append(data)
+    output.append("-"*100)
+    logger.info("\n".join(output))
 
-    logging.info("\n".join(output))
-
-    logging.info("Keystore contains {} passwords".format(len(keypass['passwords'])))
+    logger.info("Keystore contains {} passwords".format(len(keypass['passwords'])))
 
 def _delete(args):
     """This function is triggered when the user has requested to delete the specified password in keypass"""
-    logging.debug("Delete password in your keypass")
+    logger.debug("Delete password in your keypass")
 
     keypass_path = args.keypass
     if keypass_path is None or len(keypass_path.strip()) == 0:
