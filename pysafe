@@ -383,6 +383,8 @@ def _exportCSV(args):
             group = ".".join(password_name.split(".")[:-1])
             password_name = password_name.split(".")[-1]
 
+        # if password contains « " » it's replaced by « \" »
+        password = password.replace('"','\\"')
         data = '"{}","{}","{}","{}","","{}"'.format(group, password_name, username, password, comment)
         output.append(data)
 
