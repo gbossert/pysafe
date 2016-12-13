@@ -393,6 +393,7 @@ def _exportCSV(args):
             raise Exception("Couldn't export void database")
         for line in output:
             of.write(line + "\n")
+    logger.info("Keypass succesffuly exported\nWARNING: The exported data isn't encrypted !!!")
 
 def _get(args):
     """This function is triggered when the user has requested a specific password stored in keypass"""
