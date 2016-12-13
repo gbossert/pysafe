@@ -302,6 +302,7 @@ def _list(args):
 
     logger.info("Keystore contains {} passwords".format(len(keypass['passwords'])))
 
+
 def _delete(args):
     """This function is triggered when the user has requested to delete the specified password in keypass"""
     logger.debug("Delete password in your keypass")
@@ -355,6 +356,45 @@ def _export(args):
     _write_keypass(keypass, export_keypass_path, password = new_keypass_password)        
     logger.info("Keypass succesffuly exported")
     
+def _exportCSV(args):
+    """This function is triggered when the user has requested an export to CSV file format"""
+    keypass_path = args.current_keypass
+
+    if keypass_path is None or len(keypass_path.strip()) == 0:
+        keypass_path = "keypass.enc"
+    if not os.path.exists(keypass_path):
+        raise Exception("Cannot find the keypass")
+
+    (keypass, _) = _open_keypass(keypass_path)
+
+    output = []
+    for password_name in sorted(keypass['passwords'].keys()):
+        password_details = keypass['passwords'][password_name]
+        comment = ""
+        if password_details['comment'] is not None:
+            comment = password_details['comment']
+        username = ""
+        if password_details['username'] is not None:
+            username = password_details['username']
+        password = ""
+        if password_details['password'] is not None:
+            password = password_details['password']
+        if password_name != "":
+            group = ".".join(password_name.split(".")[:-1])
+            password_name = password_name.split(".")[-1]
+
+        # if password contains « " » it's replaced by « \" »
+        password = password.replace('"','\\"')
+        data = '"{}","{}","{}","{}","","{}"'.format(group, password_name, username, password, comment)
+        output.append(data)
+
+    with open (args.export_keypass, 'w') as of:
+        if len(output) == 0:
+            raise Exception("Couldn't export void database")
+        for line in output:
+            of.write(line + "\n")
+    logger.info("Keypass succesffuly exported\nWARNING: The exported data isn't encrypted !!!")
+
 def _get(args):
     """This function is triggered when the user has requested a specific password stored in keypass"""
     logger.debug("Delete password in your keypass")
@@ -451,6 +491,14 @@ def main():
     export_list.add_argument('current_keypass', help="Path to the keypass file")
     export_list.add_argument('export_keypass', help="Path to the new keypass file")    
     export_list.set_defaults(func = _export)
+
+    # 
+    # Export CSV
+    #
+    exportCSV_list = subparsers.add_parser('exportCSV', help="Export to csv data")
+    exportCSV_list.add_argument('current_keypass', help="Path to the keepass file")
+    exportCSV_list.add_argument('export_keypass', help='Path to CSV file')
+    exportCSV_list.set_defaults(func = _exportCSV)
     
 
     # handles the user arguments according to the CLI schema
