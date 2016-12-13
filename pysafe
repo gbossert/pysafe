@@ -411,7 +411,7 @@ def main():
     #
     parser_store = subparsers.add_parser('store', help='Store a password in keypass')
     parser_store.add_argument('password_name', help="Name of the password")
-    parser_store.add_argument('--keypass', dest="keypass", help="Path to the keypass file (default is keypass.enc")
+    parser_store.add_argument('keypass', help="Path to the keypass file (default is keypass.enc")
     parser_store.add_argument('--username', dest="username", help="Optional username attached to the provided password")
     parser_store.add_argument('--comment', dest="comment", help="Optional comments")            
     parser_store.set_defaults(func = _store)
@@ -421,7 +421,7 @@ def main():
     #
     parser_delete = subparsers.add_parser('delete', help='Delete a password in keypass')
     parser_delete.add_argument('password_name', help="Name of the password")
-    parser_delete.add_argument('--keypass', dest="keypass", help="Path to the keypass file (default is keypass.enc")    
+    parser_delete.add_argument('keypass', help="Path to the keypass file (default is keypass.enc")    
     parser_delete.set_defaults(func = _delete)
     
     
@@ -430,7 +430,7 @@ def main():
     #
     parser_get = subparsers.add_parser('get', help='Get a password in keypass')
     parser_get.add_argument('password_name', help="Name of the password")
-    parser_get.add_argument('--keypass', dest="keypass", help="Path to the keypass file (default is keypass.enc")
+    parser_get.add_argument('keypass', help="Path to the keypass file (default is keypass.enc")
     parser_get.add_argument("--show-password", dest="show_password", action='store_true')
     parser_get.set_defaults(func = _get)
     
